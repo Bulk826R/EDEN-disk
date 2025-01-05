@@ -5,12 +5,102 @@
 #include "halo_props.h"
 #include "allvars.h"
 #include "proto.h"
-
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_spline.h>
 
 /*! \file init.c
  *  \brief Code for initialisation of a simulation from initial conditions
  */
 
+double MS_UM(double z) {
+
+  FILE *myFile1, *myFile2;
+  int HALO_NO = HALO_ID;
+  char buffer[1024];
+  if ((HALO_NO == 9749) || (HALO_NO == 9829)){
+      sprintf(buffer, "%04d", HALO_NO);
+  }
+  else{
+      sprintf(buffer, "%03d", HALO_NO);
+  }
+  char* halo_no_str = buffer;
+  char fname1[1024];
+  char fname2[1024];
+  char* file_head = "/sdf/home/y/ycwang/Gadget2_disk/um_sfh/Halo";
+  char* file_tail1 = "8_Z.txt";
+  char* file_tail2 = "8_Mstar.txt";
+  snprintf(fname1, sizeof(fname1), "%s%s", file_head, halo_no_str);
+  snprintf(fname2,sizeof(fname2), "%s%s", file_head, halo_no_str);
+  char* file_name1 = fname1;
+  char* file_name2 = fname2;
+  strcat(file_name1, file_tail1);
+  strcat(file_name2, file_tail2);
+  myFile1 = fopen(file_name1, "r");
+  myFile2 = fopen(file_name2, "r");
+  int snap = TOT_SNAP;
+  
+  double red[snap];
+  double mstar[snap];
+  int i; 
+  for (i = 0; i < snap; i++){
+      fscanf(myFile1, "%lf", &red[i]);
+      fscanf(myFile2, "%lf", &mstar[i]);
+  }
+
+  double lgms_z;
+  {
+    gsl_interp_accel *acc
+      = gsl_interp_accel_alloc ();
+    gsl_spline *spline
+      = gsl_spline_alloc (gsl_interp_linear, snap);
+
+    gsl_spline_init (spline, red, mstar, snap);
+    lgms_z = gsl_spline_eval (spline, z, acc);
+
+    gsl_spline_free (spline);
+    gsl_interp_accel_free (acc);
+  }
+
+  fclose(myFile1);
+  fclose(myFile2);
+  return pow(10., lgms_z);
+}
+
+double FS_Guo(double z) {
+
+  FILE *myFile1, *myFile2;
+  char* file1 = "/sdf/home/y/ycwang/Gadget2_disk/um_sfh/Guo_Z.txt";
+  char* file2 = "/sdf/home/y/ycwang/Gadget2_disk/um_sfh/Guo_Fstar.txt";
+  myFile1 = fopen(file1, "r");
+  myFile2 = fopen(file2, "r");
+  int snap = 14;
+
+  double red[snap];
+  double fstar[snap];
+  int i;
+  for (i = 0; i < snap; i++){
+      fscanf(myFile1, "%lf", &red[i]);
+      fscanf(myFile2, "%lf", &fstar[i]);
+  }
+
+  double fs_z;
+  {
+    gsl_interp_accel *acc
+      = gsl_interp_accel_alloc ();
+    gsl_spline *spline
+      = gsl_spline_alloc (gsl_interp_linear, snap);
+
+    gsl_spline_init (spline, red, fstar, snap);
+    fs_z = gsl_spline_eval (spline, z, acc);
+
+    gsl_spline_free (spline);
+    gsl_interp_accel_free (acc);
+  }
+
+  fclose(myFile1);
+  fclose(myFile2);
+  return fs_z;
+}
 
 /*! This function reads the initial conditions, and allocates storage for the
  *  tree. Various variables of the particle data are initialised and An intial
@@ -60,46 +150,34 @@ void init(void)
   set_softenings();
 
 // DY==============================================================
-  //find the Type 4 particle being closest to the center, using ONE CPU!
-  /*
-  cenx=62.363106;
-  ceny=62.893150;
-  cenz=65.723854;
-  double dist=100;
-  id0=-1;
-  for(i = 0; i < NumPart; i++){
-     //printf("XXXXXX x=%f\n",P[i].Pos[0]);
-     double dtmp = sqrt(pow(P[i].Pos[0]-cenx,2)+pow(P[i].Pos[1]-ceny,2)+pow(P[i].Pos[2]-cenz,2));
-     if(dtmp<dist && P[i].Type==4){ dist=dtmp; id0=i; }
-  }
-  printf("Sink particle ID: %d, Mass=%f, vr=%f, dist=%g\n",P[id0].ID,P[id0].Mass,sqrt(pow(P[id0].Vel[0]*sqrt(All.Time)-60.07,2)+pow(P[id0].Vel[1]*sqrt(All.Time)+39.76,2)+pow(P[id0].Vel[2]*sqrt(All.Time)-178.61,2)),dist);
-  */
-  // 27136519, Mass=0.014437, vr=43.266483, dist=2.99915
+  //RW: Move PartType4 that's closest to halo center at A_START to halo center, convert it to Type 6
   id0=SINK_ID; 
   int i0=-1;
   for(i = 0; i < NumPart; i++){
      if(P[i].ID==id0){
-        if(All.Time<0.25){ // Do this only once !!!! 
-           // 62.363106 62.893150 65.723854
+        if(All.Time <= START_A){ // Do this only once !!!! 
            cenx=HALO_CEN_X;
            ceny=HALO_CEN_Y;
            cenz=HALO_CEN_Z;
            P[i].Pos[0]=cenx;
            P[i].Pos[1]=ceny;
            P[i].Pos[2]=cenz;
+           double zz = 1./All.Time - 1.;
+           Mdisk = MS_UM(zz); //Assign UM disk mass
+	   Fdisk = FS_Guo(zz); //Assign Guo stellar fraction 
            // 
 	   P[i].Vel[0]=HALO_VX/sqrt(All.Time);
 	   P[i].Vel[1]=HALO_VY/sqrt(All.Time);
 	   P[i].Vel[2]=HALO_VZ/sqrt(All.Time);
            P[i].Mass=0.015; //
-           P[i].Type=6; // 
+           P[i].Type=6; //
         }
 	else{
            cenx=P[i].Pos[0];
            ceny=P[i].Pos[1];
            cenz=P[i].Pos[2];
-           P[i].Mass=0.015; //
-	   P[i].Type=6; // DY convert the type from snapshots
+           P[i].Mass = 0.015; //+mdisk/1e10; //
+	   P[i].Type = 6; // DY convert the type from snapshots
 	}
         i0=i;
      }

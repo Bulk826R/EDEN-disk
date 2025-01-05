@@ -6,12 +6,10 @@
 #include "halo_props.h"
 #include "allvars.h"
 #include "proto.h"
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_spline.h>
 
 // Pos: comoving coordinates in units h^-1 Mpc
 // physical pos: Pos*a/h = Pos*All.Time/All.HubbleParam
-double AccRz(double R, double z, int type, double msz) // comoving R,z in units Mpc/h
+double AccRz(double R, double z, int type, double msz, double fstar) // comoving R,z in units Mpc/h
 {
    // parameters [M]=1e10 Msun/h; [L]=Mpc/h
    // Stellar disk
@@ -27,66 +25,32 @@ double AccRz(double R, double z, int type, double msz) // comoving R,z in units 
    double  rB0  = 0.5*0.001*All.HubbleParam;
 
    //----------------------
-   double redshift = 1.0/All.Time -1.0;
-   double Mhz  = pow(10,12.147633)*pow(1+redshift,0.4)*exp(-0.7*redshift); // Msun. toy MAH Lu 2016
-   //double Mhz  = pow(10,12.041)*exp(-1.082*redshift); // Msun. toy MAH fit
-   double Msz  = Ms(Mhz,redshift)*All.HubbleParam/1e10; // result in unit: 1e10 Msun/h
-   
-   //double Msz = msz*All.HubbleParam/1e10; //UM Mstar for MW host
-   
-   //double Ms0  = 2.04704; // result in unit: 1e10 Msun/h
-   double Mdsz = Mds0/(MB0+Mds0+Mdg0)*Msz; 
-   double Mdgz = Mdg0/(MB0+Mds0+Mdg0)*Msz; 
-   double MBz  = MB0 /(MB0+Mds0+Mdg0)*Msz; 
-   double Rdsz = Rds0*pow(1+redshift,-0.72);
+   double redshift = 1.0/All.Time -1.0;   
+   double Msz = msz*All.HubbleParam/1e10; //UM Mstar for MW host
+   //double Mdsz = Mds0/(MB0+Mds0+Mdg0)*Msz; 
+   //double Mdgz = Mdg0/(MB0+Mds0+Mdg0)*Msz; 
+   //double MBz  = MB0 /(MB0+Mds0+Mdg0)*Msz; 
+   double Mdsz = Mds0/(MB0+Mds0)*Msz; 
+   double MBz  = MB0 /(MB0+Mds0)*Msz; 
+   double Mdgz = (Msz / fstar) * (1. - fstar);
+   double Rdsz = Rds0*pow(1+redshift,0.28); //-0.72 -> 0.28 to take out scale factor, comoving
    double hdsz = hds0/Rds0*Rdsz;
-   double Rdgz = Rdg0*pow(1+redshift,-0.72);
+   double Rdgz = Rdg0*pow(1+redshift,0.28); //-0.72 -> 0.28 to take out scale factor, comoving
    double hdgz = hdg0/Rdg0*Rdgz;
-   double rBz  = rB0*pow(1+redshift,-0.72);
+   double rBz  = rB0*pow(1+redshift,0.28); //-0.72 -> 0.28 to take out scale factor, comoving
    //----------------------
-   
-   //double h = All.ForceSoftening[1]; //SofteningHalo*2.8
-   //double h_inv,h3_inv,u;
-   //h_inv = 1.0 / h;
-   //h3_inv = h_inv * h_inv * h_inv;
-   //double wp,wp3;
-   //double r=sqrt(R*R+z*z);
-
-   // non-singular part -F = grad.Pot
-   // if(r<h){ R = sqrt(R*R+h*h); z = sqrt(z*z+h*h); }
    double vals,valg,valb;
    if(type==0){ // minus acceleration along the z direction
-      vals = Mdsz*z*pow(pow(hdsz,2) + pow(z,2),-0.5)*   (Rdsz + pow(pow(hdsz,2) + pow(z,2),      0.5))*pow(pow(R,2) +      pow(Rdsz + pow(pow(hdsz,2) + pow(z,2),        0.5),2),-1.5);
-      valg = Mdgz*z*pow(pow(hdgz,2) + pow(z,2),-0.5)*   (Rdgz + pow(pow(hdgz,2) + pow(z,2),      0.5))*pow(pow(R,2) +      pow(Rdgz + pow(pow(hdgz,2) + pow(z,2),        0.5),2),-1.5);
-      valb = MBz*z*pow(pow(R,2) + pow(z,2),-0.5)*   pow(rBz + pow(pow(R,2) + pow(z,2),      0.5),-2);
+      vals = Mdsz*z*pow(hdsz*hdsz + z*z, -0.5) * (Rdsz + pow(hdsz*hdsz + z*z, 0.5))*pow(R*R + pow(Rdsz + pow(hdsz*hdsz + z*z, 0.5), 2), -1.5);
+      valg = Mdgz*z*pow(hdgz*hdgz + z*z, -0.5) * (Rdgz + pow(hdgz*hdgz + z*z, 0.5))*pow(R*R + pow(Rdgz + pow(hdgz*hdgz + z*z, 0.5), 2), -1.5);
+      valb = MBz*z*pow(R*R + z*z, -0.5) * pow(rBz + pow(R*R + z*z, 0.5), -2);
    }
    else{ // minus acceleration along the R direction
-      vals = Mdsz*R*pow(pow(R,2) +      pow(Rdsz + pow(pow(hdsz,2) + pow(z,2),        0.5),2),-1.5);
-      valg = Mdgz*R*pow(pow(R,2) +      pow(Rdgz + pow(pow(hdsz,2) + pow(z,2),        0.5),2),-1.5);
-      valb = MBz*R*pow(pow(R,2) + pow(z,2),-0.5)*   pow(rBz + pow(pow(R,2) + pow(z,2),      0.5),-2);
+      vals = Mdsz*R*pow(R*R + pow(Rdsz + pow(hdsz*hdsz + z*z, 0.5), 2), -1.5);
+      valg = Mdgz*R*pow(R*R + pow(Rdgz + pow(hdgz*hdgz + z*z, 0.5), 2), -1.5);
+      valb = MBz*R*pow(R*R + z*z,-0.5) * pow(rBz + pow(R*R + z*z, 0.5), -2);
    }
    double val = vals+valg+valb;
-
-   //double vals = Mdsz*pow(pow(hdsz,2) + pow(z,2),-0.5)*(Rdsz*z + (R + z)*pow(pow(hdsz,2) + pow(z,2),0.5))*pow(pow(R,2) + pow(Rdsz + pow(pow(hdsz,2) + pow(z,2),0.5),2),-1.5);
-   //double valg = Mdgz*pow(pow(hdgz,2) + pow(z,2),-0.5)*(Rdgz*z + (R + z)*pow(pow(hdgz,2) + pow(z,2),0.5))*pow(pow(R,2) + pow(Rdgz + pow(pow(hdgz,2) + pow(z,2),0.5),2),-1.5);
-   //double valb = MBz/pow(r+rBz,2);
-
-   //if(r >= h)
-   //  val = val/r;   
-   //else
-   //  {
-   //    u = r * h_inv;
-
-   //    if(u < 0.5)
-   //      wp = -2.8 + u * u * (5.333333333333 + u * u * (6.4 * u - 9.6));
-   //    else
-   //      wp =
-   //        -3.2 + 0.066666666667 / u + u * u * (10.666666666667 +
-   //                                             u * (-16.0 + u * (9.6 - 2.133333333333 * u)));
-   //    val = val * h_inv * wp;
-   //  }
-
-   //if(isnan(val)) printf("XXXXXXXX isNAN vals: %g, valg: %g, valb: %g, R: %g, z: %g\n",vals,valg,valb,R,z);
    return val; 
 
 }
@@ -526,36 +490,37 @@ void gravity_tree(void)
 
 
   // DY: external potential, following Volker's suggestion 
-  
-  double z_now = 1.0/All.Time - 1.0;
-  double mstar_now = Ms_UM(z_now);
-  mstar_now *= HALO_NORM;
- 
+  double mstar_now = Mdisk;
+  double fstar_now = Fdisk;
+  double fx_disk = 0.;
+  double fy_disk = 0.;
+  double fz_disk = 0.;
+  int itask=0;
+  int otask=0;
+
   for(i=0; i < NumPart; i++)
      if(P[i].Ti_endstep==All.Ti_Current)
      {
-        double rad =0;
-	if(P[i].ID!=id0) rad = sqrt(pow(P[i].Pos[0]-cenx,2) + pow(P[i].Pos[1]-ceny,2) + pow(P[i].Pos[2]-cenz,2));
-	if(rad!=0){
-           // -0.88200000 3.0070000 -1.3360000 (*e12)
+        double rad = 0.;
+	if(P[i].ID!=id0){
+           double dx = P[i].Pos[0]-cenx;
+           double dy = P[i].Pos[1]-ceny;
+           double dz = P[i].Pos[2]-cenz;
+
+           rad = sqrt(dx*dx + dy*dy + dz*dz);
            double cenjx=HALO_JX;
            double cenjy=HALO_JY;
            double cenjz=HALO_JZ;
-	   double cenj = sqrt(pow(cenjx,2)+pow(cenjy,2)+pow(cenjz,2));
-	   double costh = (cenjx*(P[i].Pos[0]-cenx)+cenjy*(P[i].Pos[1]-ceny)+cenjz*(P[i].Pos[2]-cenz))/(cenj*rad);
+	   double cenj = sqrt(cenjx*cenjx + cenjy*cenjy + cenjz*cenjz);
+	   double costh = (cenjx*dx+cenjy*dy+cenjz*dz)/(cenj*rad);
 	   double z = rad*costh; 
 	   double R = rad*sqrt(1-costh*costh); 
 	   if(fabs(costh)>=1){ z=0.001; printf("~~~~~~~~~~~~~~~~~~~~~~~~ costh==1\n");}
-           double sforz=AccRz(R, z, 0, mstar_now);// -accz along the j direction
-	   double forz[3] = {sforz*cenjx/cenj,sforz*cenjy/cenj,sforz*cenjz/cenj};
-           double sforR=AccRz(R, z, 1, mstar_now);// -accR along the R direction
-	   double vecR[3] = {P[i].Pos[0]-cenx - (z*cenjx/cenj), P[i].Pos[1]-ceny - (z*cenjy/cenj), P[i].Pos[2]-cenz - (z*cenjz/cenj)};
-	   double forR[3] = {sforR*vecR[0]/R,sforR*vecR[1]/R,sforR*vecR[2]/R};
-	   //printf("XXXXX check vecR/R %f==1\n",sqrt(vecR[0]*vecR[0]+vecR[1]*vecR[1]+vecR[2]*vecR[2])/R);
-	   //printf("XXXXX check vecR*cenj %f==0\n",vecR[0]*cenjx+vecR[1]*cenjy+vecR[2]*cenjz);
-	   //printf("Check Mag: sforz*z=%f >0, sforR=%f >0\n",sforz*z,sforR);
-	   // Apply the kick at z<3 
-	   // double cen[3]={cenx,ceny,cenz};
+           double sforz=AccRz(R, z, 0, mstar_now, fstar_now);// -accz along the j direction
+	   double forz[3] = {sforz*cenjx/cenj, sforz*cenjy/cenj, sforz*cenjz/cenj};
+           double sforR=AccRz(R, z, 1, mstar_now, fstar_now);// -accR along the R direction
+	   double vecR[3] = {dx-(z*cenjx/cenj), dy-(z*cenjy/cenj), dz-(z*cenjz/cenj)};
+	   double forR[3] = {sforR*vecR[0]/R, sforR*vecR[1]/R, sforR*vecR[2]/R};
 	   double fadia=0;
 	   if(All.Time<FORCE_A && All.Time>=START_A) fadia=(All.Time-START_A)/(FORCE_A-START_A);
 	   else fadia=1;
@@ -563,10 +528,45 @@ void gravity_tree(void)
               P[i].GravAccel[0] -= fadia*(forz[0]+forR[0]) * All.G;
               P[i].GravAccel[1] -= fadia*(forz[1]+forR[1]) * All.G;
               P[i].GravAccel[2] -= fadia*(forz[2]+forR[2]) * All.G;
+              //Recording the force back reaction from all other particles on the disk (excluding the sink)
+              fx_disk += P[i].Mass*fadia*(forz[0]+forR[0]) * All.G;
+              fy_disk += P[i].Mass*fadia*(forz[1]+forR[1]) * All.G;
+              fz_disk += P[i].Mass*fadia*(forz[2]+forR[2]) * All.G; 
            }
 	}
+        else{
+           itask=ThisTask;
+           //printf("loop %d, task %d\n", i, ThisTask);
+           //Renormalizing the sink particle's acceleration to sink-disk combination
+           P[i].GravAccel[0] *= P[i].Mass / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+           P[i].GravAccel[1] *= P[i].Mass / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+           P[i].GravAccel[2] *= P[i].Mass / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+        }
      }
-  
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Allreduce(&itask, &otask, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  //Applying the disk back reaction forces and adding it to the sink's accelerations
+  double Fx_disk;
+  double Fy_disk;
+  double Fz_disk; 
+  MPI_Allreduce(&fx_disk, &Fx_disk, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&fy_disk, &Fy_disk, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&fz_disk, &Fz_disk, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (ThisTask == otask){
+      //printf("This task = %d \n", ThisTask);
+      for(i=0; i < NumPart; i++)
+          if(P[i].Ti_endstep==All.Ti_Current){
+            //printf("This task = %d \n", ThisTask);
+            if (P[i].ID == id0){
+              P[i].GravAccel[0] += Fx_disk / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+              P[i].GravAccel[1] += Fy_disk / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+              P[i].GravAccel[2] += Fz_disk / (P[i].Mass + (mstar_now / fstar_now) * All.HubbleParam/1e10);
+            }
+          }
+  }
+
   free(nrecv);
   free(ewaldlist);
   free(numnodeslist);
@@ -656,62 +656,3 @@ int grav_tree_compare_key(const void *a, const void *b)
 
   return 0;
 }
-
-
-double Ms_UM(double z) {
-
-  FILE *myFile1, *myFile2;
-  int HALO_NO = 416;
-  char buffer[1024];
-  sprintf(buffer, "%03d", HALO_NO);
-  printf("%s", buffer);
-  char* halo_no_str = buffer;
-  char fname1[1024];
-  char fname2[1024];
-  char* file_head = "/sdf/home/y/ycwang/scripts/g2_disk/data/Halo";
-  char* file_tail1 = "_Z.txt";
-  char* file_tail2 = "_Mstar.txt";
-  snprintf(fname1, sizeof(fname1), "%s%s", file_head, halo_no_str);
-  snprintf(fname2,sizeof(fname2), "%s%s", file_head, halo_no_str);
-  char* file_name1 = fname1;
-  char* file_name2 = fname2;
-  strcat(file_name1, file_tail1);
-  strcat(file_name2, file_tail2);
-  myFile1 = fopen(file_name1, "r");
-  myFile2 = fopen(file_name2, "r");
-  int snap = 236;
-
-  double red[snap];
-  double mstar[snap];
-  int i;
-  for (i = 0; i < snap; i++){
-      fscanf(myFile1, "%lf", &red[i]);
-      fscanf(myFile2, "%lf", &mstar[i]);
-  }
-
-  double lgms_z;
-  {
-    gsl_interp_accel *acc
-      = gsl_interp_accel_alloc ();
-    gsl_spline *spline
-      = gsl_spline_alloc (gsl_interp_linear, snap);
-
-    gsl_spline_init (spline, red, mstar, snap);
-    lgms_z = gsl_spline_eval (spline, z, acc);
-
-    gsl_spline_free (spline);
-    gsl_interp_accel_free (acc);
-  }
-
-  fclose(myFile1);
-  fclose(myFile2);
-  return pow(10., lgms_z);
-}
-
-
-
-// result in solar mass
-double Ms(double Mh,double z){
-        return 1.4355885825427238e10*pow(10,pow(1. + z,-1)*(-0.119 + (1.548 - 0.251*z)*z*pow(exp(1),-4*pow(1 + z,-2))))*pow(exp(1),1.7691128257688131*(3.508 + (-2.6510000000000002 - 0.043*z)*z*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2)))*pow(log(10),(1.04 - 0.279*z)*z*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2)))*pow(log(1 + 9.989260420762705e-6*pow(Mh*pow(10,0.251*z*(-6.143426294820717 + 1.*z)*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2))),pow(log(10),-1))),0.316 + (-1.04 + 0.279*z)*z*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2)))*pow(1 + pow(exp(1),3.265878321723353e11*pow(10,(1.542 - 0.251*z)*z*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2)))*pow(Mh,-1)),-1) -      1.486529928275566*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2))*((-0.7557012542759408 - 0.01225769669327252*z)*z + (1. + 1.*z)*pow(exp(1),4*pow(1 + z,-2)))*pow(log(10)*pow(log(2),-1),(1.04 - 0.279*z)*z*pow(1. + z,-1)*pow(exp(1),-4*pow(1 + z,-2))))*pow(1 + pow(Mh*pow(10,-11.514 - (-0.251*z - 1.793*(-1 + pow(1 + z,-1)))*pow(exp(1),-4*pow(1 + z,-2))),-1.412 + 0.731*(-1 + pow(1 + z,-1))*pow(exp(1),-4*pow(1 + z,-2))),-1); 
-}
-

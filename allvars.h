@@ -26,7 +26,7 @@
                                   *   where TIMESPAN needs to be a power of 2. Note that (1<<28) corresponds to 2^29
                                   */
 
-#define  MAXTOPNODES     200000   /*!< Maximum number of nodes in the top-level tree used for domain decomposition */
+#define  MAXTOPNODES     1000000   /*!< Maximum number of nodes in the top-level tree used for domain decomposition */
 
 
 typedef  long long  peanokey;    /*!< defines the variable type used for Peano-Hilbert keys */
@@ -455,12 +455,8 @@ extern struct global_data_all_processes
   double SofteningBndryMaxPhys; /*!< maximum physical softening length for type 5 */ 
   double SofteningSinkMaxPhys;  /*!< maximum physical softening length for type 6 */ 
 
-  // PM:
-  double SinkSearchRadius; /*!<  Radius which is searched around sink particles to look for more appropriate locations.*/
-
   double SofteningTable[7];     /*!< current (comoving) gravitational softening lengths for each particle type */
   double ForceSoftening[7];     /*!< the same, but multiplied by a factor 2.8 - at that scale the force is Newtonian */
-
 
   double MassTable[7];          /*!< Table with particle masses for particle types with equal mass.
                                      If particle masses are all equal for one type, the corresponding entry in MassTable 
@@ -772,8 +768,8 @@ extern struct hydrodata_out
  *HydroDataResult,              /*!< stores the locally computed SPH hydro results for imported particles */
  *HydroDataPartialResult;       /*!< imported partial SPH hydro-force results from other processors */
 
-extern FLOAT cenx,ceny,cenz;
+extern FLOAT cenx,ceny,cenz,Mdisk,Fdisk;
 extern int id0;
-
+extern FLOAT cent_pot, cent_x, cent_y, cent_z, cent_vx, cent_vy, cent_vz;
 #endif
 

@@ -203,7 +203,7 @@ struct hydrodata_out
  *HydroDataResult,              /*!< stores the locally computed SPH hydro results for imported particles */
  *HydroDataPartialResult;       /*!< imported partial SPH hydro-force results from other processors */
 
-FLOAT cenx,ceny,cenz;
+FLOAT cenx,ceny,cenz,Mdisk,Fdisk;
 int id0;
-
+FLOAT cent_pot, cent_x, cent_y, cent_z, cent_vx, cent_vy, cent_vz;
 

@@ -17,5 +17,6 @@
 
 #define HALO_ID 416
 #define HALO_NORM 1.
+#define TOT_SNAP 218  //Length of the main progenitor SFH
 
 #endif /* _HALO_PROPS_H_ */

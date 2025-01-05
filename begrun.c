@@ -105,8 +105,6 @@ void begrun(void)
       All.OutputListOn = all.OutputListOn;
       All.CourantFac = all.CourantFac;
 
-	  All.SinkSearchRadius = all.SinkSearchRadius;
-
       All.OutputListLength = all.OutputListLength;
       memcpy(All.OutputListTimes, all.OutputListTimes, sizeof(double) * All.OutputListLength);
 
@@ -569,11 +567,6 @@ void read_parameter_file(char *fname)
 
       strcpy(tag[nt], "SofteningSinkMaxPhys");
       addr[nt] = &All.SofteningSinkMaxPhys;
-      id[nt++] = DOUBLE;
-
-	  // PM: maximum radius that you search around the sink particle
-      strcpy(tag[nt], "SinkSearchRadius");
-      addr[nt] = &All.SinkSearchRadius;
       id[nt++] = DOUBLE;
 
       strcpy(tag[nt], "BufferSize");

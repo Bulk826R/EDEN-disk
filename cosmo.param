@@ -115,5 +115,3 @@ SofteningBulgeMaxPhys     0.0015
 SofteningStarsMaxPhys     0.003
 SofteningBndryMaxPhys     0.012
 SofteningSinkMaxPhys      0.0003
-
-SinkSearchRadius    0.01

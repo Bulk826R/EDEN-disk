@@ -197,3 +197,6 @@ void   write_pid_file(void);
 
 double Ms(double Mh,double z);
 double Ms_UM(double z);
+double MS_UM(double z);
+double Fs_Guo(double z);
+double FS_Guo(double z);

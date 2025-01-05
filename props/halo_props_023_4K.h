@@ -1,0 +1,22 @@
+#ifndef _HALO_PROPS_H_ 
+#define _HALO_PROPS_H_ 
+
+#define START_A 0.249198 
+#define FORCE_A 0.26 
+#define SINK_ID 3808422 
+
+#define HALO_CEN_X 60.32796096801758 
+#define HALO_CEN_Y 62.132110595703125 
+#define HALO_CEN_Z 62.59156036376953 
+#define HALO_VX -107.80999755859375 
+#define HALO_VY -5.75 
+#define HALO_VZ 79.6500015258789 
+#define HALO_JX -0.353900003328 
+#define HALO_JY -0.332900007936 
+#define HALO_JZ 0.719199993856 
+
+#define HALO_ID 23
+#define HALO_NORM 1.0 
+#define TOT_SNAP 220 
+
+#endif /* _HALO_PROPS_H_ */
